@@ -32,7 +32,7 @@ void generate_sine(SineState *audio_data, int len) {
     int bytes_per_sample = sizeof(uint16) * CHANNELS;
     int total_samples = len / bytes_per_sample;
 
-    for (int32 sample_index = 0; sample_index <= total_samples; sample_index++) {
+    for (int32 sample_index = 0; sample_index < total_samples; sample_index++) {
         float32 sval = tone_volume * sinf(audio_data->theta);
         audio_data->theta += angle_add;
         if (audio_data->theta > TWO_PI) {
@@ -71,7 +71,7 @@ void generate_triangle(TriangleState *audio_state, int len) {
     int half_period = period / 2;
     int volume_steps_per_sample = 2 * tone_volume / half_period;
     int16 sample_value = audio_state->level;
-    for (int sample_index = 0; sample_index <= total_samples; sample_index++) {
+    for (int sample_index = 0; sample_index < total_samples; sample_index++) {
 
         // Create the triangle wav
         if (sample_value <= -tone_volume) audio_state->sign = 1;
@@ -86,40 +86,89 @@ void generate_triangle(TriangleState *audio_state, int len) {
     audio_state->level = sample_value;
 }
 
-// typedef struct {
-//     float32 level;
-//     int16 *buffer;
-// } SawtoothState;
-// 
-// SawtoothState get_sawtooth_state() {
-//     SawtoothState result = {0, 0};
-//     return result;
-// }
-// 
-// void generate_sawtooth(SawtoothState *audio_data, int len) {
-//     int16 *sample_write = audio_data->buffer;
-//     int16 sample_value;
-//     float32 angle_add = TWO_PI * tone_hz / samples_per_second;
-// 
-//     int bytes_per_sample = sizeof(uint16) * CHANNELS;
-//     int total_samples = len / bytes_per_sample;
-// 
-//     for (int32 sample_index = 0; sample_index <= total_samples; sample_index++) {
-//         float32 sval = tone_volume * sinf(audio_data->theta);
-//         audio_data->theta += angle_add;
-//         if (audio_data->theta > TWO_PI) {
-//             audio_data->theta -= TWO_PI;
-//         }
-//         sample_value = (int16) sval;
-// 
-//         // Write the sample_value to the buffer for each channel
-//         for (int channel = 0; channel < CHANNELS; channel++) {
-//             *sample_write++ = sample_value;
-//         }
-//     }
-// 
-// }
+typedef struct {
+    float32 level;
+    int16 *buffer;
+} SawtoothState;
 
+SawtoothState get_sawtooth_state(int16 *buffer) {
+    SawtoothState result;
+    result.level = 0;
+    result.buffer = buffer;
+    return result;
+}
+
+void generate_sawtooth(SawtoothState *audio_state, int len) {
+    int16 *sample_write = audio_state->buffer;
+
+    int bytes_per_sample = sizeof(uint16) * CHANNELS;
+    int total_samples = len / bytes_per_sample;
+
+    int period = samples_per_second / tone_hz;
+    int half_period = period / 2;
+    int volume_steps_per_sample = 2*tone_volume / period;
+    int16 sample_value = audio_state->level;
+    for (int sample_index = 0; sample_index < total_samples; sample_index++) {
+
+        if (sample_value >= tone_volume) sample_value = -tone_volume;
+        sample_value += volume_steps_per_sample;
+
+        // Write the sample_value to the buffer for each channel
+        for (int channel = 0; channel < CHANNELS; channel++) {
+            *sample_write++ = sample_value;
+        }
+    }
+    audio_state->level = sample_value;
+}
+
+typedef struct {
+    float32 level;
+    int32 last;
+    int32 sign;
+    int16 *buffer;
+} SquareState;
+
+SquareState get_square_state(int16 *buffer) {
+    SquareState result;
+    result.level = 0;
+    result.last = 0;
+    result.sign = 1;
+    result.buffer = buffer;
+    return result;
+}
+
+void generate_square(SquareState *audio_state, int len) {
+    int16 *sample_write = audio_state->buffer;
+
+    int bytes_per_sample = sizeof(uint16) * CHANNELS;
+    int total_samples = len / bytes_per_sample;
+
+    int period = samples_per_second / tone_hz;
+    int half_period = period / 2;
+    int16 sample_value;
+    int sample_index;
+    for (sample_index = 0; sample_index < total_samples; sample_index++) {
+
+        if (((sample_index + audio_state->last) % half_period) == 0) {
+        //if ((sample_index % half_period) == 0) {
+            audio_state->sign *= -1;
+        }
+
+        sample_value = audio_state->sign * tone_volume;
+
+        // Write the sample_value to the buffer for each channel
+        for (int channel = 0; channel < CHANNELS; channel++) {
+            *sample_write++ = sample_value;
+        }
+    }
+
+    // @Todo: why can't I use the modulus here??
+    //audio_state->last = total_samples % half_period;
+    //audio_state->last += sample_index;
+    //audio_state->last += total_samples;
+    //audio_state->last = half_period % total_samples;
+    audio_state->last = total_samples % half_period;
+}
 
 
 // void audio_callback(void *userdata, Uint8 *stream, int len) {
@@ -129,10 +178,24 @@ void generate_triangle(TriangleState *audio_state, int len) {
 //     memcpy(stream, (uint8 *) audio_data->buffer, len);
 // }
 
-void audio_callback(void *userdata, Uint8 *stream, int len) {
-    TriangleState *audio_data = (TriangleState *) userdata;
+// void audio_callback(void *userdata, Uint8 *stream, int len) {
+//     TriangleState *audio_data = (TriangleState *) userdata;
+// 
+//     generate_triangle(audio_data, len);
+//     memcpy(stream, (uint8 *) audio_data->buffer, len);
+// }
 
-    generate_triangle(audio_data, len);
+// void audio_callback(void *userdata, Uint8 *stream, int len) {
+//     SawtoothState *audio_data = (SawtoothState *) userdata;
+// 
+//     generate_sawtooth(audio_data, len);
+//     memcpy(stream, (uint8 *) audio_data->buffer, len);
+// }
+
+void audio_callback(void *userdata, Uint8 *stream, int len) {
+    SquareState *audio_data = (SquareState *) userdata;
+
+    generate_square(audio_data, len);
     memcpy(stream, (uint8 *) audio_data->buffer, len);
 }
 
@@ -156,7 +219,10 @@ int main(int argc, char* argv[]){
     SDL_AudioSpec wanted_spec;
     SDL_AudioSpec obtained_spec;
 
-    SineState audio_data = get_sine_state(sample_start);
+    // SineState audio_data = get_sine_state(sample_start);
+    // TriangleState audio_data = get_triangle_state(sample_start);
+    // SawtoothState audio_data = get_sawtooth_state(sample_start);
+    SquareState audio_data = get_square_state(sample_start);
 
     wanted_spec.freq = samples_per_second;
     wanted_spec.format = AUDIO_S16;
