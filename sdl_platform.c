@@ -11,6 +11,7 @@ float32 samples_per_second = 44100.0;
 float32 tone_hz = 440.0;
 float32 tone_volume = 5000;
 
+#define SINE
 
 typedef struct {
     float32 theta;
@@ -149,8 +150,7 @@ void generate_square(SquareState *audio_state, int len) {
     int sample_index;
     for (sample_index = 0; sample_index < total_samples; sample_index++) {
 
-        if (((sample_index + audio_state->last) % half_period) == 0) {
-        //if ((sample_index % half_period) == 0) {
+        if ((sample_index + audio_state->last) % half_period == 0) {
             audio_state->sign *= -1;
         }
 
@@ -161,43 +161,46 @@ void generate_square(SquareState *audio_state, int len) {
             *sample_write++ = sample_value;
         }
     }
-
-    // @Todo: why can't I use the modulus here??
-    //audio_state->last = total_samples % half_period;
-    //audio_state->last += sample_index;
-    //audio_state->last += total_samples;
-    //audio_state->last = half_period % total_samples;
-    audio_state->last = total_samples % half_period;
+    audio_state->last = (sample_index + audio_state->last) % half_period;
 }
 
+// @Todo: need to come up with a good solution for a general callback function
 
-// void audio_callback(void *userdata, Uint8 *stream, int len) {
-//     SineState *audio_data = (SineState *) userdata;
-// 
-//     generate_sine(audio_data, len);
-//     memcpy(stream, (uint8 *) audio_data->buffer, len);
-// }
+#ifdef SINE
+void audio_callback(void *userdata, Uint8 *stream, int len) {
+    SineState *audio_data = (SineState *) userdata;
 
-// void audio_callback(void *userdata, Uint8 *stream, int len) {
-//     TriangleState *audio_data = (TriangleState *) userdata;
-// 
-//     generate_triangle(audio_data, len);
-//     memcpy(stream, (uint8 *) audio_data->buffer, len);
-// }
+    generate_sine(audio_data, len);
+    memcpy(stream, (uint8 *) audio_data->buffer, len);
+}
+#endif
 
-// void audio_callback(void *userdata, Uint8 *stream, int len) {
-//     SawtoothState *audio_data = (SawtoothState *) userdata;
-// 
-//     generate_sawtooth(audio_data, len);
-//     memcpy(stream, (uint8 *) audio_data->buffer, len);
-// }
+#ifdef TRIANGLE
+void audio_callback(void *userdata, Uint8 *stream, int len) {
+    TriangleState *audio_data = (TriangleState *) userdata;
 
+    generate_triangle(audio_data, len);
+    memcpy(stream, (uint8 *) audio_data->buffer, len);
+}
+#endif
+
+#ifdef SAWTOOTH
+void audio_callback(void *userdata, Uint8 *stream, int len) {
+    SawtoothState *audio_data = (SawtoothState *) userdata;
+
+    generate_sawtooth(audio_data, len);
+    memcpy(stream, (uint8 *) audio_data->buffer, len);
+}
+#endif
+
+#ifdef SQUARE
 void audio_callback(void *userdata, Uint8 *stream, int len) {
     SquareState *audio_data = (SquareState *) userdata;
 
     generate_square(audio_data, len);
     memcpy(stream, (uint8 *) audio_data->buffer, len);
 }
+#endif
 
 
 int main(int argc, char* argv[]){
@@ -219,10 +222,18 @@ int main(int argc, char* argv[]){
     SDL_AudioSpec wanted_spec;
     SDL_AudioSpec obtained_spec;
 
-    // SineState audio_data = get_sine_state(sample_start);
-    // TriangleState audio_data = get_triangle_state(sample_start);
-    // SawtoothState audio_data = get_sawtooth_state(sample_start);
+#ifdef SINE
+    SineState audio_data = get_sine_state(sample_start);
+#endif
+#ifdef TRIANGLE
+    TriangleState audio_data = get_triangle_state(sample_start);
+#endif
+#ifdef SAWTOOTH
+    SawtoothState audio_data = get_sawtooth_state(sample_start);
+#endif
+#ifdef SQUARE
     SquareState audio_data = get_square_state(sample_start);
+#endif
 
     wanted_spec.freq = samples_per_second;
     wanted_spec.format = AUDIO_S16;
