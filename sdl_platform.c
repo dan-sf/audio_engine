@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include "platform.h"
+#include <stdbool.h>
 
 #define SECONDS 6
 #define CHANNELS 2
@@ -10,6 +11,15 @@
 float32 samples_per_second = 44100.0;
 float32 tone_hz = 440.0;
 float32 tone_volume = 5000;
+
+int32 IS_SINE = 1;
+
+typedef struct {
+    void (*generate)();
+    void *state;
+    // ??? state_info;
+} GenerateAudio;
+
 
 #define SINE
 
@@ -86,6 +96,12 @@ void generate_triangle(TriangleState *audio_state, int len) {
     }
     audio_state->level = sample_value;
 }
+
+typedef struct {
+    void *user_data;
+    SineState sine_data;
+    TriangleState triangle_data;
+} AD;
 
 typedef struct {
     float32 level;
@@ -166,7 +182,8 @@ void generate_square(SquareState *audio_state, int len) {
 
 // @Todo: need to come up with a good solution for a general callback function
 
-#ifdef SINE
+
+#ifdef SINEEEEE
 void audio_callback(void *userdata, Uint8 *stream, int len) {
     SineState *audio_data = (SineState *) userdata;
 
@@ -174,6 +191,22 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
     memcpy(stream, (uint8 *) audio_data->buffer, len);
 }
 #endif
+
+void sine_audio_callback(void *userdata, Uint8 *stream, int len) {
+    AD *audio_data = (AD *) userdata;
+    if (IS_SINE) {
+        //SineState *sine_data = (SineState *) audio_data->sine_data;
+
+        generate_sine(&audio_data->sine_data, len);
+        memcpy(stream, (uint8 *) audio_data->sine_data.buffer, len);
+    } else {
+        //printf("here tri\n");
+        //TriangleState *triangle_data = (TriangleState *) audio_data->triangle_data;
+
+        generate_triangle(&audio_data->triangle_data, len);
+        memcpy(stream, (uint8 *) audio_data->triangle_data.buffer, len);
+    }
+}
 
 #ifdef TRIANGLE
 void audio_callback(void *userdata, Uint8 *stream, int len) {
@@ -183,6 +216,13 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
     memcpy(stream, (uint8 *) audio_data->buffer, len);
 }
 #endif
+
+void triangle_audio_callback(void *userdata, Uint8 *stream, int len) {
+    TriangleState *audio_data = (TriangleState *) userdata;
+
+    generate_triangle(audio_data, len);
+    memcpy(stream, (uint8 *) audio_data->buffer, len);
+}
 
 #ifdef SAWTOOTH
 void audio_callback(void *userdata, Uint8 *stream, int len) {
@@ -202,8 +242,21 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
 }
 #endif
 
+void square_audio_callback(void *userdata, Uint8 *stream, int len) {
+    SquareState *audio_data = (SquareState *) userdata;
+
+    generate_square(audio_data, len);
+    memcpy(stream, (uint8 *) audio_data->buffer, len);
+}
+
+void (*ac)(void *userdata, Uint8 *stream, int len);
+
+void audio_callback(void *userdata, Uint8 *stream, int len) {
+    ac(userdata, stream, len);
+}
 
 int main(int argc, char* argv[]){
+    ac = &sine_audio_callback;
     printf("Playing a wave.\n");
 
     int bytes_per_sample = sizeof(Uint16) * CHANNELS;
@@ -214,7 +267,7 @@ int main(int argc, char* argv[]){
     Sint16 *sample_start = sample_write;
 
     // Init SDL
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) < 0) {
         printf("SDL init error: %s\n", SDL_GetError());
         return 1;
     }
@@ -235,12 +288,21 @@ int main(int argc, char* argv[]){
     SquareState audio_data = get_square_state(sample_start);
 #endif
 
+    SineState sine_audio_data = get_sine_state(sample_start);
+    TriangleState triangle_audio_data = get_triangle_state(sample_start);
+    SawtoothState sawtooth_audio_data = get_sawtooth_state(sample_start);
+    SquareState square_audio_data = get_square_state(sample_start);
+
+    AD ad;
+    ad.sine_data = sine_audio_data;
+    ad.triangle_data = triangle_audio_data;
+
     wanted_spec.freq = samples_per_second;
     wanted_spec.format = AUDIO_S16;
     wanted_spec.channels = CHANNELS;
     wanted_spec.samples = 4096;
-    wanted_spec.callback = audio_callback;
-    wanted_spec.userdata = &audio_data;
+    wanted_spec.callback = ac; //audio_callback;
+    wanted_spec.userdata = &ad; //&audio_data;
 
     // Open the audio device
     int iscapture = 0;
@@ -253,13 +315,103 @@ int main(int argc, char* argv[]){
         return 1;
     }
 
+    // @TODO: Work on getting visuals up and running
+
+    // SDL_Window *window;
+    // SDL_Renderer *renderer;
+    // SDL_Surface *surface;
+    // SDL_Texture *texture;
+    // SDL_Event event;
+
+    // if (SDL_CreateWindowAndRenderer(320, 240, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    //     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window and renderer: %s", SDL_GetError());
+    //     return 1;
+    // }
+
+    // // Create an application window with the following settings:
+    // SDL_Window *window;
+    // window = SDL_CreateWindow(
+    //     "An SDL2 window",                  // window title
+    //     0,           // initial x position
+    //     0,           // initial y position
+    //     640,                               // width, in pixels
+    //     480,                               // height, in pixels
+    //     SDL_WINDOW_OPENGL//|SDL_WINDOW_FULLSCREEN                  // flags - see below
+    //     //SDL_WINDOW_OPENGL|SDL_WINDOW_FULLSCREEN                  // flags - see below
+    // );
+
+    // // Check that the window was successfully created
+    // if (window == NULL) {
+    //     // In the case that the window could not be made...
+    //     printf("Could not create window: %s\n", SDL_GetError());
+    //     return 1;
+    // }
+    // SDL_ShowWindow(window);
+
     // Start playing
     SDL_PauseAudioDevice(device, 0);
 
+
+    enum WaveType {SIN, TRI, SQU} wave_type;
+    wave_type = SIN;
     // Wait for SECONDS number of seconds
-    SDL_Delay(SECONDS * 1000);
+    bool running = true;
+    SDL_Event event;
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+                case SDL_KEYDOWN:
+                    switch (event.key.keysym.sym) {
+                        case SDLK_q:
+                            running = false;
+                            break;
+                        case SDLK_w: // Sine
+                            printf("Playing a sine\n");
+                            IS_SINE = 1;
+                            wave_type = SIN;
+                            obtained_spec.callback = sine_audio_callback;
+                            obtained_spec.userdata = &sine_audio_data;
+                            wanted_spec.callback = sine_audio_callback;
+                            wanted_spec.userdata = &sine_audio_data;
+                            ac = &sine_audio_callback;
+                            break;
+                        case SDLK_e: // Triangle
+                            IS_SINE = 0;
+                            printf("Playing a triangle\n");
+                            wave_type = TRI;
+                            obtained_spec.callback = triangle_audio_callback;
+                            obtained_spec.userdata = &triangle_audio_data;
+                            wanted_spec.callback = triangle_audio_callback;
+                            wanted_spec.userdata = &triangle_audio_data;
+                            ac = &triangle_audio_callback;
+                            break;
+                        case SDLK_r: // Square
+                            printf("Playing a square\n");
+                            wave_type = SQU;
+                            obtained_spec.callback = square_audio_callback;
+                            ac = &square_audio_callback;
+                            break;
+                        default:
+                            break;
+                    }
+                // case SDL_KEYUP:
+                //     //SDL_KeyboardEvent k = event.key;
+                //     // printf("%s\n", SDL_GetKeyName(event.key.keysym.sym));
+                //     break;
+                default:
+                    break;
+            }
+
+            // Update the sound output here
+        }
+        SDL_Delay(100);
+    }
 
     // Shut everything down
+    // SDL_DestroyWindow(window);
     SDL_CloseAudioDevice(device);
     free(sound_buffer);
     SDL_Quit();
