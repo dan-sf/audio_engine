@@ -12,17 +12,6 @@ float32 samples_per_second = 44100.0;
 float32 tone_hz = 440.0;
 float32 tone_volume = 5000;
 
-int32 IS_SINE = 1;
-
-typedef struct {
-    void (*generate)();
-    void *state;
-    // ??? state_info;
-} GenerateAudio;
-
-
-#define SINE
-
 typedef struct {
     float32 theta;
     int16 *buffer;
@@ -96,12 +85,6 @@ void generate_triangle(TriangleState *audio_state, int len) {
     }
     audio_state->level = sample_value;
 }
-
-typedef struct {
-    void *user_data;
-    SineState sine_data;
-    TriangleState triangle_data;
-} AD;
 
 typedef struct {
     float32 level;
@@ -180,83 +163,42 @@ void generate_square(SquareState *audio_state, int len) {
     audio_state->last = (sample_index + audio_state->last) % half_period;
 }
 
+typedef struct {
+    void *user_data;
+    SineState sine_data;
+    TriangleState triangle_data;
+    SquareState square_data;
+    SawtoothState sawtooth_data;
+    enum WaveType {SIN, TRI, SQU, SAW} wave_type;
+} AudioData;
+
+
 // @Todo: need to come up with a good solution for a general callback function
-
-
-#ifdef SINEEEEE
 void audio_callback(void *userdata, Uint8 *stream, int len) {
-    SineState *audio_data = (SineState *) userdata;
-
-    generate_sine(audio_data, len);
-    memcpy(stream, (uint8 *) audio_data->buffer, len);
-}
-#endif
-
-void sine_audio_callback(void *userdata, Uint8 *stream, int len) {
-    AD *audio_data = (AD *) userdata;
-    if (IS_SINE) {
-        //SineState *sine_data = (SineState *) audio_data->sine_data;
-
-        generate_sine(&audio_data->sine_data, len);
-        memcpy(stream, (uint8 *) audio_data->sine_data.buffer, len);
-    } else {
-        //printf("here tri\n");
-        //TriangleState *triangle_data = (TriangleState *) audio_data->triangle_data;
-
-        generate_triangle(&audio_data->triangle_data, len);
-        memcpy(stream, (uint8 *) audio_data->triangle_data.buffer, len);
+    AudioData *audio_data = (AudioData *) userdata;
+    switch (audio_data->wave_type) {
+        case SIN:
+            generate_sine(&audio_data->sine_data, len);
+            memcpy(stream, (uint8 *) audio_data->sine_data.buffer, len);
+            break;
+        case TRI:
+            generate_triangle(&audio_data->triangle_data, len);
+            memcpy(stream, (uint8 *) audio_data->triangle_data.buffer, len);
+            break;
+        case SQU:
+            generate_square(&audio_data->square_data, len);
+            memcpy(stream, (uint8 *) audio_data->square_data.buffer, len);
+            break;
+        case SAW:
+            generate_sawtooth(&audio_data->sawtooth_data, len);
+            memcpy(stream, (uint8 *) audio_data->sawtooth_data.buffer, len);
+            break;
+        default:
+            break;
     }
 }
 
-#ifdef TRIANGLE
-void audio_callback(void *userdata, Uint8 *stream, int len) {
-    TriangleState *audio_data = (TriangleState *) userdata;
-
-    generate_triangle(audio_data, len);
-    memcpy(stream, (uint8 *) audio_data->buffer, len);
-}
-#endif
-
-void triangle_audio_callback(void *userdata, Uint8 *stream, int len) {
-    TriangleState *audio_data = (TriangleState *) userdata;
-
-    generate_triangle(audio_data, len);
-    memcpy(stream, (uint8 *) audio_data->buffer, len);
-}
-
-#ifdef SAWTOOTH
-void audio_callback(void *userdata, Uint8 *stream, int len) {
-    SawtoothState *audio_data = (SawtoothState *) userdata;
-
-    generate_sawtooth(audio_data, len);
-    memcpy(stream, (uint8 *) audio_data->buffer, len);
-}
-#endif
-
-#ifdef SQUARE
-void audio_callback(void *userdata, Uint8 *stream, int len) {
-    SquareState *audio_data = (SquareState *) userdata;
-
-    generate_square(audio_data, len);
-    memcpy(stream, (uint8 *) audio_data->buffer, len);
-}
-#endif
-
-void square_audio_callback(void *userdata, Uint8 *stream, int len) {
-    SquareState *audio_data = (SquareState *) userdata;
-
-    generate_square(audio_data, len);
-    memcpy(stream, (uint8 *) audio_data->buffer, len);
-}
-
-void (*ac)(void *userdata, Uint8 *stream, int len);
-
-void audio_callback(void *userdata, Uint8 *stream, int len) {
-    ac(userdata, stream, len);
-}
-
 int main(int argc, char* argv[]){
-    ac = &sine_audio_callback;
     printf("Playing a wave.\n");
 
     int bytes_per_sample = sizeof(Uint16) * CHANNELS;
@@ -275,34 +217,24 @@ int main(int argc, char* argv[]){
     SDL_AudioSpec wanted_spec;
     SDL_AudioSpec obtained_spec;
 
-#ifdef SINE
-    SineState audio_data = get_sine_state(sample_start);
-#endif
-#ifdef TRIANGLE
-    TriangleState audio_data = get_triangle_state(sample_start);
-#endif
-#ifdef SAWTOOTH
-    SawtoothState audio_data = get_sawtooth_state(sample_start);
-#endif
-#ifdef SQUARE
-    SquareState audio_data = get_square_state(sample_start);
-#endif
-
     SineState sine_audio_data = get_sine_state(sample_start);
     TriangleState triangle_audio_data = get_triangle_state(sample_start);
     SawtoothState sawtooth_audio_data = get_sawtooth_state(sample_start);
     SquareState square_audio_data = get_square_state(sample_start);
 
-    AD ad;
-    ad.sine_data = sine_audio_data;
-    ad.triangle_data = triangle_audio_data;
+    AudioData audio_data;
+    audio_data.sine_data = sine_audio_data;
+    audio_data.triangle_data = triangle_audio_data;
+    audio_data.square_data = square_audio_data;
+    audio_data.sawtooth_data = sawtooth_audio_data;
 
     wanted_spec.freq = samples_per_second;
     wanted_spec.format = AUDIO_S16;
     wanted_spec.channels = CHANNELS;
     wanted_spec.samples = 4096;
-    wanted_spec.callback = ac; //audio_callback;
-    wanted_spec.userdata = &ad; //&audio_data;
+    wanted_spec.callback = audio_callback;
+    wanted_spec.userdata = &audio_data;
+    audio_data.wave_type = SIN; // @Update: the wave_type should be initialized to a better default
 
     // Open the audio device
     int iscapture = 0;
@@ -351,12 +283,9 @@ int main(int argc, char* argv[]){
     // Start playing
     SDL_PauseAudioDevice(device, 0);
 
-
-    enum WaveType {SIN, TRI, SQU} wave_type;
-    wave_type = SIN;
-    // Wait for SECONDS number of seconds
     bool running = true;
     SDL_Event event;
+
     while (running) {
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -370,29 +299,19 @@ int main(int argc, char* argv[]){
                             break;
                         case SDLK_w: // Sine
                             printf("Playing a sine\n");
-                            IS_SINE = 1;
-                            wave_type = SIN;
-                            obtained_spec.callback = sine_audio_callback;
-                            obtained_spec.userdata = &sine_audio_data;
-                            wanted_spec.callback = sine_audio_callback;
-                            wanted_spec.userdata = &sine_audio_data;
-                            ac = &sine_audio_callback;
+                            audio_data.wave_type = SIN;
                             break;
                         case SDLK_e: // Triangle
-                            IS_SINE = 0;
                             printf("Playing a triangle\n");
-                            wave_type = TRI;
-                            obtained_spec.callback = triangle_audio_callback;
-                            obtained_spec.userdata = &triangle_audio_data;
-                            wanted_spec.callback = triangle_audio_callback;
-                            wanted_spec.userdata = &triangle_audio_data;
-                            ac = &triangle_audio_callback;
+                            audio_data.wave_type = TRI;
                             break;
                         case SDLK_r: // Square
                             printf("Playing a square\n");
-                            wave_type = SQU;
-                            obtained_spec.callback = square_audio_callback;
-                            ac = &square_audio_callback;
+                            audio_data.wave_type = SQU;
+                            break;
+                        case SDLK_t: // Sawtooth
+                            printf("Playing a sawtooth\n");
+                            audio_data.wave_type = SAW;
                             break;
                         default:
                             break;
@@ -404,8 +323,6 @@ int main(int argc, char* argv[]){
                 default:
                     break;
             }
-
-            // Update the sound output here
         }
         SDL_Delay(100);
     }
