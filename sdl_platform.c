@@ -297,6 +297,8 @@ int main(int argc, char* argv[]){
                         case SDLK_q:
                             running = false;
                             break;
+
+                        // Wave types
                         case SDLK_w: // Sine
                             printf("Playing a sine\n");
                             audio_data.wave_type = SIN;
@@ -313,6 +315,33 @@ int main(int argc, char* argv[]){
                             printf("Playing a sawtooth\n");
                             audio_data.wave_type = SAW;
                             break;
+
+                        // C major scale
+                        case SDLK_a:
+                            tone_hz = 261.63;
+                            break;
+                        case SDLK_s:
+                            tone_hz = 293.66;
+                            break;
+                        case SDLK_d:
+                            tone_hz = 329.63;
+                            break;
+                        case SDLK_f:
+                            tone_hz = 349.23;
+                            break;
+                        case SDLK_g:
+                            tone_hz = 392.00;
+                            break;
+                        case SDLK_h:
+                            tone_hz = 440.00;
+                            break;
+                        case SDLK_j:
+                            tone_hz = 493.88;
+                            break;
+                        case SDLK_k:
+                            tone_hz = 523.25;
+                            break;
+
                         default:
                             break;
                     }
