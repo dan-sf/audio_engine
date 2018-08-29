@@ -1,7 +1,8 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <SDL2/SDL.h>
 #include "platform.h"
-#include <stdbool.h>
+#include "notes.h"
 
 #define SECONDS 6
 #define CHANNELS 2
@@ -11,6 +12,7 @@
 float32 samples_per_second = 44100.0;
 float32 tone_hz = 440.0;
 float32 tone_volume = 5000;
+
 
 typedef struct {
     float32 theta;
@@ -24,13 +26,13 @@ SineState get_sine_state(int16 *buffer) {
     return result;
 }
 
-void generate_sine(SineState *audio_data, int len) {
+void generate_sine(SineState *audio_data, int32 len) {
     int16 *sample_write = audio_data->buffer;
     int16 sample_value;
     float32 angle_add = TWO_PI * tone_hz / samples_per_second;
 
-    int bytes_per_sample = sizeof(uint16) * CHANNELS;
-    int total_samples = len / bytes_per_sample;
+    int32 bytes_per_sample = sizeof(uint16) * CHANNELS;
+    int32 total_samples = len / bytes_per_sample;
 
     for (int32 sample_index = 0; sample_index < total_samples; sample_index++) {
         float32 sval = tone_volume * sinf(audio_data->theta);
@@ -41,7 +43,7 @@ void generate_sine(SineState *audio_data, int len) {
         sample_value = (int16) sval;
 
         // Write the sample_value to the buffer for each channel
-        for (int channel = 0; channel < CHANNELS; channel++) {
+        for (int32 channel = 0; channel < CHANNELS; channel++) {
             *sample_write++ = sample_value;
         }
     }
@@ -61,17 +63,17 @@ TriangleState get_triangle_state(int16 *buffer) {
     return result;
 }
 
-void generate_triangle(TriangleState *audio_state, int len) {
+void generate_triangle(TriangleState *audio_state, int32 len) {
     int16 *sample_write = audio_state->buffer;
 
-    int bytes_per_sample = sizeof(uint16) * CHANNELS;
-    int total_samples = len / bytes_per_sample;
+    int32 bytes_per_sample = sizeof(uint16) * CHANNELS;
+    int32 total_samples = len / bytes_per_sample;
 
-    int period = samples_per_second / tone_hz;
-    int half_period = period / 2;
-    int volume_steps_per_sample = 2 * tone_volume / half_period;
+    int32 period = samples_per_second / tone_hz;
+    int32 half_period = period / 2;
+    int32 volume_steps_per_sample = 2 * tone_volume / half_period;
     int16 sample_value = audio_state->level;
-    for (int sample_index = 0; sample_index < total_samples; sample_index++) {
+    for (int32 sample_index = 0; sample_index < total_samples; sample_index++) {
 
         // Create the triangle wav
         if (sample_value <= -tone_volume) audio_state->sign = 1;
@@ -79,7 +81,7 @@ void generate_triangle(TriangleState *audio_state, int len) {
         sample_value += audio_state->sign * volume_steps_per_sample;
 
         // Write the sample_value to the buffer for each channel
-        for (int channel = 0; channel < CHANNELS; channel++) {
+        for (int32 channel = 0; channel < CHANNELS; channel++) {
             *sample_write++ = sample_value;
         }
     }
@@ -98,23 +100,23 @@ SawtoothState get_sawtooth_state(int16 *buffer) {
     return result;
 }
 
-void generate_sawtooth(SawtoothState *audio_state, int len) {
+void generate_sawtooth(SawtoothState *audio_state, int32 len) {
     int16 *sample_write = audio_state->buffer;
 
-    int bytes_per_sample = sizeof(uint16) * CHANNELS;
-    int total_samples = len / bytes_per_sample;
+    int32 bytes_per_sample = sizeof(uint16) * CHANNELS;
+    int32 total_samples = len / bytes_per_sample;
 
-    int period = samples_per_second / tone_hz;
-    int half_period = period / 2;
-    int volume_steps_per_sample = 2*tone_volume / period;
+    int32 period = samples_per_second / tone_hz;
+    int32 half_period = period / 2;
+    int32 volume_steps_per_sample = 2*tone_volume / period;
     int16 sample_value = audio_state->level;
-    for (int sample_index = 0; sample_index < total_samples; sample_index++) {
+    for (int32 sample_index = 0; sample_index < total_samples; sample_index++) {
 
         if (sample_value >= tone_volume) sample_value = -tone_volume;
         sample_value += volume_steps_per_sample;
 
         // Write the sample_value to the buffer for each channel
-        for (int channel = 0; channel < CHANNELS; channel++) {
+        for (int32 channel = 0; channel < CHANNELS; channel++) {
             *sample_write++ = sample_value;
         }
     }
@@ -137,16 +139,16 @@ SquareState get_square_state(int16 *buffer) {
     return result;
 }
 
-void generate_square(SquareState *audio_state, int len) {
+void generate_square(SquareState *audio_state, int32 len) {
     int16 *sample_write = audio_state->buffer;
 
-    int bytes_per_sample = sizeof(uint16) * CHANNELS;
-    int total_samples = len / bytes_per_sample;
+    int32 bytes_per_sample = sizeof(uint16) * CHANNELS;
+    int32 total_samples = len / bytes_per_sample;
 
-    int period = samples_per_second / tone_hz;
-    int half_period = period / 2;
+    int32 period = samples_per_second / tone_hz;
+    int32 half_period = period / 2;
     int16 sample_value;
-    int sample_index;
+    int32 sample_index;
     for (sample_index = 0; sample_index < total_samples; sample_index++) {
 
         if ((sample_index + audio_state->last) % half_period == 0) {
@@ -156,7 +158,7 @@ void generate_square(SquareState *audio_state, int len) {
         sample_value = audio_state->sign * tone_volume;
 
         // Write the sample_value to the buffer for each channel
-        for (int channel = 0; channel < CHANNELS; channel++) {
+        for (int32 channel = 0; channel < CHANNELS; channel++) {
             *sample_write++ = sample_value;
         }
     }
@@ -174,7 +176,7 @@ typedef struct {
 
 
 // @Todo: need to come up with a good solution for a general callback function
-void audio_callback(void *userdata, Uint8 *stream, int len) {
+void audio_callback(void *userdata, Uint8 *stream, int32 len) {
     AudioData *audio_data = (AudioData *) userdata;
     switch (audio_data->wave_type) {
         case SIN:
@@ -198,11 +200,11 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
     }
 }
 
-int main(int argc, char* argv[]){
+int32 main(int32 argc, char* argv[]){
     printf("Playing a wave.\n");
 
-    int bytes_per_sample = sizeof(Uint16) * CHANNELS;
-    int bytes_to_write = samples_per_second * bytes_per_sample; // number of bytes for a second of audio
+    int32 bytes_per_sample = sizeof(Uint16) * CHANNELS;
+    int32 bytes_to_write = samples_per_second * bytes_per_sample; // number of bytes for a second of audio
 
     void *sound_buffer = malloc(bytes_to_write);
     Sint16 *sample_write = (Sint16 *)sound_buffer;
@@ -237,8 +239,8 @@ int main(int argc, char* argv[]){
     audio_data.wave_type = SIN; // @Update: the wave_type should be initialized to a better default
 
     // Open the audio device
-    int iscapture = 0;
-    int allowed_changes = 0;
+    int32 iscapture = 0;
+    int32 allowed_changes = 0;
     const char* device_name = SDL_GetAudioDeviceName(0, iscapture);
     SDL_AudioDeviceID device = SDL_OpenAudioDevice(device_name, iscapture, &wanted_spec,
                                                    &obtained_spec, allowed_changes);
@@ -318,28 +320,28 @@ int main(int argc, char* argv[]){
 
                         // C major scale
                         case SDLK_a:
-                            tone_hz = 261.63;
+                            tone_hz = get_frequency("C4");
                             break;
                         case SDLK_s:
-                            tone_hz = 293.66;
+                            tone_hz = get_frequency("D4");
                             break;
                         case SDLK_d:
-                            tone_hz = 329.63;
+                            tone_hz = get_frequency("E4");
                             break;
                         case SDLK_f:
-                            tone_hz = 349.23;
+                            tone_hz = get_frequency("F4");
                             break;
                         case SDLK_g:
-                            tone_hz = 392.00;
+                            tone_hz = get_frequency("G4");
                             break;
                         case SDLK_h:
-                            tone_hz = 440.00;
+                            tone_hz = get_frequency("A4");
                             break;
                         case SDLK_j:
-                            tone_hz = 493.88;
+                            tone_hz = get_frequency("B4");
                             break;
                         case SDLK_k:
-                            tone_hz = 523.25;
+                            tone_hz = get_frequency("C5");
                             break;
 
                         default:
