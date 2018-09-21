@@ -251,16 +251,17 @@ int32 main(int32 argc, char* argv[]){
 
     // @TODO: Work on getting visuals up and running
 
-    // SDL_Window *window;
-    // SDL_Renderer *renderer;
-    // SDL_Surface *surface;
-    // SDL_Texture *texture;
-    // SDL_Event event;
+    SDL_Window *window;
+    SDL_Renderer *renderer; // @Question: Do I need a renderer to draw to the window?
+    SDL_Texture *texture;
 
-    // if (SDL_CreateWindowAndRenderer(320, 240, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
-    //     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window and renderer: %s", SDL_GetError());
-    //     return 1;
-    // }
+    if (SDL_CreateWindowAndRenderer(320, 240, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window and renderer: %s", SDL_GetError());
+        return 1;
+    }
+
+    SDL_SetWindowTitle(window, "Audio Engine");
+    //window->title = "FooBar";
 
     // // Create an application window with the following settings:
     // SDL_Window *window;
@@ -274,13 +275,13 @@ int32 main(int32 argc, char* argv[]){
     //     //SDL_WINDOW_OPENGL|SDL_WINDOW_FULLSCREEN                  // flags - see below
     // );
 
-    // // Check that the window was successfully created
-    // if (window == NULL) {
-    //     // In the case that the window could not be made...
-    //     printf("Could not create window: %s\n", SDL_GetError());
-    //     return 1;
-    // }
-    // SDL_ShowWindow(window);
+    // Check that the window was successfully created
+    if (window == NULL) {
+        // In the case that the window could not be made...
+        printf("Could not create window: %s\n", SDL_GetError());
+        return 1;
+    }
+    SDL_ShowWindow(window);
 
     // Start playing
     SDL_PauseAudioDevice(device, 0);
@@ -359,7 +360,7 @@ int32 main(int32 argc, char* argv[]){
     }
 
     // Shut everything down
-    // SDL_DestroyWindow(window);
+    SDL_DestroyWindow(window);
     SDL_CloseAudioDevice(device);
     free(sound_buffer);
     SDL_Quit();
