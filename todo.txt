@@ -1,0 +1,24 @@
+
+# Current todo items
+- Note mixing (playing multiple notes at the same time)
+- Key up, stops writing to the buffer (eventually using sustain and decay)
+- UI window with keyboard roll
+
+- Figure out good design for writing general data into wave output buffer
+- Create filters
+    - High pass
+    - Low pass
+- Create envelope code
+    - Attack
+    - Decay
+    - Sustane
+    - Release
+- Design some patches that use these components (Add ideas here)
+
+
+# @Question: Should I switch to C++ ?? (Sticking with C for now)
+# Pluses for using C++
+- Default function args
+- Default values for structs
+- Function overloading
+
