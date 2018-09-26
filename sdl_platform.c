@@ -255,29 +255,16 @@ int32 main(int32 argc, char* argv[]){
     SDL_Renderer *renderer; // @Question: Do I need a renderer to draw to the window?
     SDL_Texture *texture;
 
+    // @Note: Use default renderer for now, in the future we may want to switch to something else
     if (SDL_CreateWindowAndRenderer(320, 240, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window and renderer: %s", SDL_GetError());
         return 1;
     }
 
     SDL_SetWindowTitle(window, "Audio Engine");
-    //window->title = "FooBar";
-
-    // // Create an application window with the following settings:
-    // SDL_Window *window;
-    // window = SDL_CreateWindow(
-    //     "An SDL2 window",                  // window title
-    //     0,           // initial x position
-    //     0,           // initial y position
-    //     640,                               // width, in pixels
-    //     480,                               // height, in pixels
-    //     SDL_WINDOW_OPENGL//|SDL_WINDOW_FULLSCREEN                  // flags - see below
-    //     //SDL_WINDOW_OPENGL|SDL_WINDOW_FULLSCREEN                  // flags - see below
-    // );
 
     // Check that the window was successfully created
     if (window == NULL) {
-        // In the case that the window could not be made...
         printf("Could not create window: %s\n", SDL_GetError());
         return 1;
     }
@@ -291,72 +278,84 @@ int32 main(int32 argc, char* argv[]){
 
     while (running) {
         while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-                case SDL_QUIT:
-                    running = false;
-                    break;
-                case SDL_KEYDOWN:
-                    switch (event.key.keysym.sym) {
-                        case SDLK_q:
-                            running = false;
-                            break;
+            if (event.type == SDL_QUIT) {
+                running = false;
+            }
 
-                        // Wave types
-                        case SDLK_w: // Sine
-                            printf("Playing a sine\n");
-                            audio_data.wave_type = SIN;
-                            break;
-                        case SDLK_e: // Triangle
-                            printf("Playing a triangle\n");
-                            audio_data.wave_type = TRI;
-                            break;
-                        case SDLK_r: // Square
-                            printf("Playing a square\n");
-                            audio_data.wave_type = SQU;
-                            break;
-                        case SDLK_t: // Sawtooth
-                            printf("Playing a sawtooth\n");
-                            audio_data.wave_type = SAW;
-                            break;
+            if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_q:
+                        running = false;
+                        break;
 
-                        // C major scale
-                        case SDLK_a:
-                            tone_hz = get_frequency("C4");
-                            break;
-                        case SDLK_s:
-                            tone_hz = get_frequency("D4");
-                            break;
-                        case SDLK_d:
-                            tone_hz = get_frequency("E4");
-                            break;
-                        case SDLK_f:
-                            tone_hz = get_frequency("F4");
-                            break;
-                        case SDLK_g:
-                            tone_hz = get_frequency("G4");
-                            break;
-                        case SDLK_h:
-                            tone_hz = get_frequency("A4");
-                            break;
-                        case SDLK_j:
-                            tone_hz = get_frequency("B4");
-                            break;
-                        case SDLK_k:
-                            tone_hz = get_frequency("C5");
-                            break;
+                    // Wave types
+                    case SDLK_w: // Sine
+                        printf("Playing a sine\n");
+                        audio_data.wave_type = SIN;
+                        break;
+                    case SDLK_e: // Triangle
+                        printf("Playing a triangle\n");
+                        audio_data.wave_type = TRI;
+                        break;
+                    case SDLK_r: // Square
+                        printf("Playing a square\n");
+                        audio_data.wave_type = SQU;
+                        break;
+                    case SDLK_t: // Sawtooth
+                        printf("Playing a sawtooth\n");
+                        audio_data.wave_type = SAW;
+                        break;
 
-                        default:
-                            break;
-                    }
-                // case SDL_KEYUP:
-                //     //SDL_KeyboardEvent k = event.key;
-                //     // printf("%s\n", SDL_GetKeyName(event.key.keysym.sym));
-                //     break;
-                default:
-                    break;
+                    // C major scale
+                    case SDLK_a:
+                        tone_hz = get_frequency("C4");
+                        break;
+                    case SDLK_s:
+                        tone_hz = get_frequency("D4");
+                        break;
+                    case SDLK_d:
+                        tone_hz = get_frequency("E4");
+                        break;
+                    case SDLK_f:
+                        tone_hz = get_frequency("F4");
+                        break;
+                    case SDLK_g:
+                        tone_hz = get_frequency("G4");
+                        break;
+                    case SDLK_h:
+                        tone_hz = get_frequency("A4");
+                        break;
+                    case SDLK_j:
+                        tone_hz = get_frequency("B4");
+                        break;
+                    case SDLK_k:
+                        tone_hz = get_frequency("C5");
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            if (event.type == SDL_KEYUP && event.key.repeat == 0) {
+                switch (event.key.keysym.sym) {
+                    // C major scale
+                    case SDLK_a:
+                    case SDLK_s:
+                    case SDLK_d:
+                    case SDLK_f:
+                    case SDLK_g:
+                    case SDLK_h:
+                    case SDLK_j:
+                    case SDLK_k:
+                        tone_hz = 0.0;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
-        SDL_Delay(100);
+        SDL_Delay(50);
     }
 
     // Shut everything down
