@@ -179,6 +179,7 @@ typedef struct {
 void audio_callback(void *userdata, Uint8 *stream, int32 len) {
     AudioData *audio_data = (AudioData *) userdata;
     switch (audio_data->wave_type) {
+#if 0
         case SIN:
             generate_sine(&audio_data->sine_data, len);
             memcpy(stream, (uint8 *) audio_data->sine_data.buffer, len);
@@ -195,6 +196,7 @@ void audio_callback(void *userdata, Uint8 *stream, int32 len) {
             generate_sawtooth(&audio_data->sawtooth_data, len);
             memcpy(stream, (uint8 *) audio_data->sawtooth_data.buffer, len);
             break;
+#endif
         default:
             break;
     }
@@ -253,13 +255,14 @@ int32 main(int32 argc, char* argv[]){
 
     SDL_Window *window;
     SDL_Renderer *renderer; // @Question: Do I need a renderer to draw to the window?
-    SDL_Texture *texture;
 
     // @Note: Use default renderer for now, in the future we may want to switch to something else
-    if (SDL_CreateWindowAndRenderer(320, 240, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (SDL_CreateWindowAndRenderer(1400, 800, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window and renderer: %s", SDL_GetError());
         return 1;
     }
+    SDL_Surface* surface = SDL_GetWindowSurface(window);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
 
     SDL_SetWindowTitle(window, "Audio Engine");
 
@@ -269,6 +272,21 @@ int32 main(int32 argc, char* argv[]){
         return 1;
     }
     SDL_ShowWindow(window);
+
+    SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
+    SDL_RenderClear(renderer);
+
+    SDL_Rect white_key;
+    white_key.x = 50; white_key.y = 50; white_key.w = 50; white_key.h = 50;
+    SDL_SetRenderDrawColor(renderer, 230, 230, 230, 255);
+    SDL_RenderFillRect(renderer, &white_key);
+
+    SDL_Rect black_key;
+    black_key.x = 150; black_key.y = 50; black_key.w = 50; black_key.h = 50;
+    SDL_SetRenderDrawColor(renderer, 10, 10, 10, 255);
+    SDL_RenderFillRect(renderer, &black_key);
+
+    SDL_RenderPresent(renderer);
 
     // Start playing
     SDL_PauseAudioDevice(device, 0);
